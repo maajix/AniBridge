@@ -25,10 +25,12 @@ configure_logger()
 EXECUTOR: Optional[ThreadPoolExecutor] = None
 RUNNING: Dict[str, Tuple[Future, threading.Event]] = {}
 RUNNING_LOCK = threading.Lock()
+SHUTTING_DOWN = threading.Event()
 
 
 def init_executor() -> None:
     global EXECUTOR
+    SHUTTING_DOWN.clear()
     if EXECUTOR is None:
         EXECUTOR = ThreadPoolExecutor(
             max_workers=MAX_CONCURRENCY, thread_name_prefix="anibridge"
@@ -38,6 +40,7 @@ def init_executor() -> None:
 
 def shutdown_executor() -> None:
     global EXECUTOR
+    SHUTTING_DOWN.set()
     with RUNNING_LOCK:
         for _, (_, ev) in list(RUNNING.items()):
             ev.set()
@@ -115,6 +118,14 @@ def _progress_updater(job_id: str, stop_event: threading.Event):
     return _cb
 
 
+def _interrupted_by_shutdown(job_id: str) -> bool:
+    # Leave the job 'downloading' so the next startup re-queues it
+    if SHUTTING_DOWN.is_set():
+        logger.info(f"Job {job_id} interrupted by shutdown; it resumes on next start")
+        return True
+    return False
+
+
 def _run_download(job_id: str, req: dict, stop_event: threading.Event):
     """
     Run a download task and record its progress and final state in the database.
@@ -162,6 +173,8 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
                 s, job_id, status="completed", progress=100.0, result_path=str(dest)
             )
     except OSError as e:
+        if _interrupted_by_shutdown(job_id):
+            return
         with Session(engine) as s:
             if e.errno in (errno.EACCES, errno.EROFS):
                 update_job(
@@ -173,6 +186,8 @@ def _run_download(job_id: str, req: dict, stop_event: threading.Event):
             else:
                 update_job(s, job_id, status="failed", message=str(e))
     except Exception as e:
+        if _interrupted_by_shutdown(job_id):
+            return
         msg = str(e)
         status = "failed"
         if "Cancel" in msg or "cancel" in msg:

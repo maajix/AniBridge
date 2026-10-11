@@ -212,3 +212,20 @@ def test_run_strm_creates_proxy_url(tmp_path, monkeypatch):
         assert mapping is not None
         assert mapping.resolved_url == "https://example.com/video.mp4"
         assert mapping.provider_used == "VOE"
+
+
+def test_run_download_keeps_job_resumable_on_shutdown(tmp_path, monkeypatch):
+    scheduler = _setup_scheduler(tmp_path, monkeypatch)
+
+    def _cancelled(**_):
+        raise Exception("Megakino download failed after retries: Unexpected error")
+
+    monkeypatch.setattr(scheduler, "download_episode", _cancelled)
+    job_id = _create_job()
+    scheduler.SHUTTING_DOWN.set()
+    try:
+        scheduler._run_download(job_id, {"slug": "x", "season": 1, "episode": 1}, threading.Event())
+    finally:
+        scheduler.SHUTTING_DOWN.clear()
+
+    assert _get_job(job_id).status == "downloading"
