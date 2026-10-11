@@ -412,7 +412,9 @@ def fetch_megakino_domain(
     """
     logger.info("Resolving megakino domain via sitemap checks.")
     seen: set[str] = set()
-    ordered_candidates: list[str] = []
+    # The built-in candidates go stale as megakino rotates domains; probing the
+    # configured one first follows its redirect to the current domain.
+    ordered_candidates: list[str] = [os.getenv("MEGAKINO_BASE_URL", "").strip()]
     mirror_timeout = min(timeout, 8)
     mirror_domains = fetch_megakino_mirror_domains(
         timeout=mirror_timeout, include_sitemap_fallback=False

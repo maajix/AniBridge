@@ -179,3 +179,22 @@ def test_fetch_megakino_domain_disables_mirror_sitemap_fallback(monkeypatch):
     resolved = domain_resolver.fetch_megakino_domain(timeout=1)
     assert resolved is None
     assert seen_kwargs.get("include_sitemap_fallback") is False
+
+
+def test_fetch_megakino_domain_follows_configured_domain_first(monkeypatch):
+    """A configured domain that redirects resolves to its redirect target."""
+    monkeypatch.setenv("MEGAKINO_BASE_URL", "https://megakino23.com")
+    monkeypatch.setattr(domain_resolver, "MEGAKINO_DOMAIN_CANDIDATES", ["stale.example"])
+    monkeypatch.setattr(
+        domain_resolver, "fetch_megakino_mirror_domains", lambda timeout=0, **kw: []
+    )
+
+    def fake_probe(base_url: str, timeout=0):
+        # megakino23.com redirects to megakino24.com; stale.example is dead
+        if domain_resolver._normalize_domain(base_url) == "megakino23.com":
+            return "megakino24.com"
+        return None
+
+    monkeypatch.setattr(domain_resolver, "_probe_megakino_sitemap", fake_probe)
+
+    assert domain_resolver.fetch_megakino_domain(timeout=1) == "megakino24.com"
