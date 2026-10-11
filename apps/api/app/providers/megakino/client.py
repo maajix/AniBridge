@@ -32,6 +32,18 @@ _MEGAKINO_TOKEN_TTL_SECONDS = 30 * 60
 _DEFAULT_CLIENT_LOCK = threading.Lock()
 
 
+def _on_base_domain(url: str) -> str:
+    """
+    Move a sitemap URL onto the active base domain.
+
+    The sitemap lists every page under whatever domain the site last generated
+    it with (megakino23.com serves megakino3.com URLs), which costs a 3-hop
+    redirect chain per page fetch.
+    """
+    base = urlparse(get_megakino_base_url())
+    return urlparse(url)._replace(scheme=base.scheme, netloc=base.netloc).geturl()
+
+
 def _is_disabled_host_url(url: str) -> bool:
     """Return whether a host URL points to a disabled extractor host."""
 
@@ -114,7 +126,7 @@ class MegakinoClient:
             results.append(
                 MegakinoSearchResult(
                     slug=entry.slug,
-                    url=entry.url,
+                    url=_on_base_domain(entry.url),
                     title=title,
                     score=score,
                     kind=entry.kind,
@@ -139,7 +151,7 @@ class MegakinoClient:
         entries = self.load_index()
         entry = entries.get(slug)
         if entry:
-            return entry.url
+            return _on_base_domain(entry.url)
         return None
 
     def resolve_direct_url(

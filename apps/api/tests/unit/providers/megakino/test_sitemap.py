@@ -169,3 +169,27 @@ def test_megakino_resolve_direct_url_prefers_matching_host_domain(monkeypatch):
     resolved = client.resolve_direct_url("slug", preferred_host="https://voe.sx/embed")
 
     assert resolved == ("https://voe.sx/e/second", "EMBED")
+
+
+def test_megakino_resolve_url_uses_active_base_domain(monkeypatch):
+    """Sitemap URLs on a stale domain are served from the active base domain."""
+    import app.providers.megakino.client as megakino_client
+
+    monkeypatch.setattr(
+        megakino_client, "get_megakino_base_url", lambda: "https://megakino23.com"
+    )
+    client = MegakinoClient(sitemap_url="http://example.com", refresh_hours=0.0)
+    client._index = MegakinoIndex(
+        entries={
+            "matrix": MegakinoIndexEntry(
+                slug="matrix",
+                url="https://megakino3.com/films/852-matrix.html",
+                kind="film",
+                lastmod=datetime(2026, 10, 11),
+            ),
+        },
+        fetched_at=0.0,
+    )
+
+    assert client.resolve_url("matrix") == "https://megakino23.com/films/852-matrix.html"
+    assert client.search("Matrix")[0].url.startswith("https://megakino23.com/")
