@@ -54,14 +54,16 @@ def search(site: str, query: str) -> Optional[Tuple[str, str]]:
     )
 
     query_fn, model, _ = _site(site)
-    results = query_fn(keyword=query) or []
+    year = extract_year_from_query(query)
+    # The sites' search finds nothing for "Title 2024"; search the title alone
+    keyword = (query.rsplit(str(year), 1)[0].strip() if year else "") or query
+    results = query_fn(keyword=keyword) or []
     q_tokens, q_norm = _match_tokens(query), _normalize_alnum(query)
     scored = sorted(
         ((_score_title_candidate(q_tokens, q_norm, r["title"]), r) for r in results),
         key=lambda item: item[0],
         reverse=True,
     )
-    year = extract_year_from_query(query)
     for score, result in scored[:3]:
         if score < _MIN_TITLE_MATCH_SCORE:
             break

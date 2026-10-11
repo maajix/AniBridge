@@ -15,16 +15,23 @@ class FakeEpisode:
         self.redirect_url = self.provider_data[(audio, Subtitles.NONE)][selected_provider or "VOE"]
 
 
-def _fake_site(results):
-    return lambda site: (lambda keyword: results, FakeEpisode, BASE + "{}")
+def _fake_site(results, keywords=None):
+    def query(keyword):
+        if keywords is not None:
+            keywords.append(keyword)
+        return results
+
+    return lambda site: (query, FakeEpisode, BASE + "{}")
 
 
 def test_search_prefers_title_match_with_fitting_year(monkeypatch):
+    keywords = []
     monkeypatch.setattr(moviesites, "_site", _fake_site([
         {"title": "Battlestar Galactica - Der Plan", "url": BASE + "battlestar-galactica-der-plan"},
         {"title": "Der Plan", "url": BASE + "der-plan"},
-    ]))
+    ], keywords))
     assert moviesites.search("filmpalast", "Der Plan 2011") == ("der-plan", "Der Plan")
+    assert keywords == ["Der Plan"]
     assert moviesites.search("filmpalast", "Der Plan 1995") is None
 
 
