@@ -21,6 +21,13 @@ COPY apps/api/app/ ./app/
 COPY VERSION ./
 COPY apps/api/alembic.ini ./alembic.ini
 RUN uv sync --frozen --no-editable
+# urllib3-future (via aniworld -> niquests) installs its own files into urllib3/
+# and a .pth that re-applies them. requests then crashes in its retry path
+# ('NoneType' object has no attribute 'kill_cursor'). niquests uses urllib3_future
+# on its own, so restore the locked real urllib3 for requests.
+RUN rm -rf /app/.venv/lib/python*/site-packages/urllib3 \
+           /app/.venv/lib/python*/site-packages/urllib3_future.pth \
+ && uv sync --frozen --no-editable --reinstall-package urllib3
 
 # --- Stage 3: Copy source and create non-root user ---
 FROM base AS final
