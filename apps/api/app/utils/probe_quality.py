@@ -8,7 +8,7 @@ from app.core.downloader import get_direct_url_with_fallback, build_episode
 from app.utils.naming import quality_from_info
 from app.config import CATALOG_SITE_CONFIGS
 from app.utils.logger import config as configure_logger
-from app.providers.megakino.client import get_default_client
+from app.providers.moviesites import movie_client
 
 configure_logger()
 
@@ -94,9 +94,9 @@ def probe_episode_quality(
         f"Probing episode quality for slug={slug}, season={season}, episode={episode}, language={language}, "
         f"preferred_host={preferred_host}, timeout={timeout}, site={site}"
     )
-    if "megakino" in site:
+    client = movie_client(site)
+    if client:
         try:
-            client = get_default_client()
             direct, provider_used = client.resolve_direct_url(
                 slug=slug, preferred_host=preferred_host
             )

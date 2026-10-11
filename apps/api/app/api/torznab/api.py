@@ -26,6 +26,7 @@ from app.config import (
     TORZNAB_TEST_TITLE,
 )
 from app.db import get_session
+from app.providers.moviesites import MOVIE_SITES
 from app.providers.aniworld.specials import (
     SpecialIds,
     resolve_special_mapping_from_episode_request,
@@ -430,15 +431,19 @@ def torznab_api(
             return _rss_response(rss)
 
         if movie_preferred:
-            count = _handle_preview_search(
-                session,
-                q_str,
-                channel,
-                TORZNAB_CAT_MOVIE,
-                site="megakino",
-                limit=limit,
-                strm_suffix=strm_suffix,
-            )
+            count = 0
+            for movie_site in ("megakino", *MOVIE_SITES):
+                count = _handle_preview_search(
+                    session,
+                    q_str,
+                    channel,
+                    TORZNAB_CAT_MOVIE,
+                    site=movie_site,
+                    limit=limit,
+                    strm_suffix=strm_suffix,
+                )
+                if count:
+                    break
             if count == 0:
                 _handle_preview_search(
                     session,
@@ -491,15 +496,17 @@ def torznab_api(
             )
             return _rss_response(rss)
         if q_str:
-            _handle_preview_search(
-                session,
-                q_str,
-                channel,
-                TORZNAB_CAT_MOVIE,
-                site="megakino",
-                limit=limit,
-                strm_suffix=strm_suffix,
-            )
+            for movie_site in ("megakino", *MOVIE_SITES):
+                if _handle_preview_search(
+                    session,
+                    q_str,
+                    channel,
+                    TORZNAB_CAT_MOVIE,
+                    site=movie_site,
+                    limit=limit,
+                    strm_suffix=strm_suffix,
+                ):
+                    break
         return _rss_response(rss)
 
     if t != "tvsearch":

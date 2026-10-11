@@ -18,7 +18,7 @@ def _site_prefix(site: str) -> str:
     Returns:
         str: "aw" for "aniworld.to"/"megakino", "sto" for "s.to", and "aw" for any other site (default). Logs a warning when defaulting.
     """
-    if site in ("aniworld.to", "megakino"):
+    if site in ("aniworld.to", "megakino", "filmpalast", "filmo"):
         return "aw"
     if site == "s.to":
         return "sto"

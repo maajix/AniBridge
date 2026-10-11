@@ -297,6 +297,14 @@ for site in CATALOG_SITES_LIST:
         continue
     CATALOG_SITE_CONFIGS[site] = deepcopy(base_cfg)
 
+# Movie-only sites (app/providers/moviesites.py). Kept out of CATALOG_SITES so the
+# series/anime title search never sees them; this only sets language and group.
+for _movie_site in ("filmpalast", "filmo"):
+    CATALOG_SITE_CONFIGS[_movie_site] = {
+        "default_languages": ["German Dub"],
+        "release_group": _movie_site,
+    }
+
 # ---- Video-host fallback ----
 # Comma-separated list of direct video hosts, for example:
 # "VOE,Filemoon,Vidmoly,Doodstream,Vidoza" (aniworld 5.3.0 dropped Streamtape,

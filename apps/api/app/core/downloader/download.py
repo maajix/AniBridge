@@ -6,7 +6,7 @@ from loguru import logger
 
 from app.config import PROVIDER_ORDER
 from app.utils.naming import rename_to_release
-from app.providers.megakino.client import get_default_client
+from app.providers.moviesites import MOVIE_SITES, movie_client
 from .errors import DownloadError
 from .episode import build_episode
 from .language import normalize_language
@@ -76,11 +76,11 @@ def download_episode(
         dest_dir,
         site,
     )
-    if "megakino" in site and slug:
-        logger.debug("Megakino download flow: slug='{}'", slug)
-        client = get_default_client()
+    client = movie_client(site)
+    if client and slug:
+        logger.debug("Movie site download flow: site='{}' slug='{}'", site, slug)
         entry = client.load_index().get(slug)
-        is_movie = bool(entry and entry.kind == "film")
+        is_movie = site in MOVIE_SITES or bool(entry and entry.kind == "film")
         if is_movie:
             logger.debug("Megakino slug '{}' classified as movie.", slug)
         provider_candidates = []

@@ -7,6 +7,7 @@ from loguru import logger
 from sqlmodel import Session
 
 from app.providers import get_provider
+from app.providers import moviesites
 from app.providers.aniworld.specials import SpecialIds
 from app.utils.magnet import _site_prefix
 from app.utils.movie_year import get_movie_year
@@ -35,9 +36,21 @@ def handle_preview_search(
         return 0
 
     movie_year = get_movie_year(q_str)
-    result = (
-        tn._slug_from_query(q_str, site=site) if site else tn._slug_from_query(q_str)
-    )
+    site_title = None
+    if site in moviesites.MOVIE_SITES:
+        try:
+            found = moviesites.search(site, q_str)
+        except Exception as exc:  # third-party scraper; never fail the indexer
+            logger.warning("{} search failed for '{}': {}", site, q_str, exc)
+            found = None
+        result = (site, found[0]) if found else None
+        site_title = found[1] if found else None
+    else:
+        result = (
+            tn._slug_from_query(q_str, site=site)
+            if site
+            else tn._slug_from_query(q_str)
+        )
     if not result:
         if site:
             logger.debug("No slug found for query '{}' using site '{}'", q_str, site)
@@ -52,7 +65,7 @@ def handle_preview_search(
             logger.info("No megakino match for '{}' with a fitting year", q_str)
             return 0
         slug = match.slug
-    display_title = tn.resolve_series_title(slug, site_found) or q_str
+    display_title = site_title or tn.resolve_series_title(slug, site_found) or q_str
     if movie_year:
         display_title = f"{display_title} {movie_year}"
 
