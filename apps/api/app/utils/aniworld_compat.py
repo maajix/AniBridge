@@ -36,4 +36,19 @@ def prepare_aniworld_home() -> Path:
     # AniBridge-owned persistent storage without changing process HOME.
     os.environ["ANIWORLD_INSTALL_FOLDER"] = str(install_dir)
     logger.debug("AniWorld runtime directory: {}", install_dir)
+    _use_system_dns()
     return install_dir
+
+
+def _use_system_dns() -> None:
+    """Swap aniworld's Cloudflare DoH resolver for the system one.
+
+    Behind the VPN the DoH lookup took up to two minutes per new host; the
+    system resolver (the VPN container's DNS, still inside the tunnel)
+    answers at once.
+    """
+    from aniworld.config import GLOBAL_SESSION
+
+    # niquests' unpickle path remounts the adapters on the system resolver
+    # and keeps headers and verify.
+    GLOBAL_SESSION.__setstate__(GLOBAL_SESSION.__getstate__())
