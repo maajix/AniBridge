@@ -220,3 +220,26 @@ def test_megakino_search_slug_picks_match_with_query_year(monkeypatch):
     assert provider.search_slug("Vaiana 2 2024").slug == "vaiana-2"
     assert provider.search_slug("Vaiana 2016").slug == "vaiana"
     assert provider.search_slug("Vaiana 2026") is None
+
+
+def test_megakino_search_slug_ignores_single_shared_word(monkeypatch):
+    """'Deadpool and Wolverine' must not match 'Avatar Fire and Ash'."""
+    import app.providers.megakino.client as megakino_client
+    from app.providers.megakino.provider import get_provider
+
+    client = MegakinoClient(sitemap_url="http://example.com", refresh_hours=0.0)
+    client._index = MegakinoIndex(
+        entries={
+            "avatar-fire-and-ash": MegakinoIndexEntry(
+                slug="avatar-fire-and-ash",
+                url="https://megakino23.com/films/1-avatar-fire-and-ash.html",
+                kind="film",
+                lastmod=datetime(2026, 10, 11),
+            )
+        },
+        fetched_at=0.0,
+    )
+    client._years = {"avatar-fire-and-ash": 2025}
+    monkeypatch.setattr(megakino_client, "get_default_client", lambda: client)
+
+    assert get_provider().search_slug("Deadpool and Wolverine 2024") is None

@@ -97,12 +97,34 @@ class MegakinoProvider(CatalogProvider):
         """
         if not query:
             return None
+        from app.utils.title_resolver import (
+            _MIN_TITLE_MATCH_SCORE,
+            _match_tokens,
+            _normalize_alnum,
+            _score_title_candidate,
+        )
+
         client = megakino_client.get_default_client()
         try:
-            results = client.search(query, limit=3)
+            entries = client.load_index()
         except (requests.RequestException, OSError, ValueError) as exc:
             logger.error("Megakino search failed: {}", exc)
             return None
+        # Score like title_resolver: client.search() accepts any shared word,
+        # so "Deadpool and Wolverine" matched "Avatar Fire and Ash".
+        q_tokens, q_norm = _match_tokens(query), _normalize_alnum(query)
+        scored = sorted(
+            (
+                (_score_title_candidate(q_tokens, q_norm, megakino_client.slug_to_title(slug)), slug)
+                for slug in entries
+            ),
+            reverse=True,
+        )
+        results = [
+            ProviderMatch(slug=slug, score=score)
+            for score, slug in scored[:3]
+            if score >= _MIN_TITLE_MATCH_SCORE
+        ]
         # Slugs carry no year: "Vaiana 2026" matched the 2016 film and was
         # released as Vaiana.2026. Take the first match whose page year fits.
         year = extract_year_from_query(query)
@@ -121,7 +143,7 @@ class MegakinoProvider(CatalogProvider):
                         year,
                     )
                     continue
-            return ProviderMatch(slug=top.slug, score=top.score)
+            return top
         return None
 
 
