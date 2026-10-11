@@ -94,7 +94,8 @@ def resolve_direct_url(
     for provider in providers:
         episode = model(url, selected_language=_LANGUAGE, selected_provider=provider)
         try:
-            embed = episode.redirect_url
+            # follows the site's redirect (filmo.to/n/...) to the hoster embed
+            embed = episode.provider_url
         except ValueError as exc:
             logger.debug("{} {} via {}: {}", site, slug, provider, exc)
             continue

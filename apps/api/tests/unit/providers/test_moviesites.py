@@ -12,7 +12,7 @@ class FakeEpisode:
         self.release_year = YEARS[slug]
         audio = Audio.ENGLISH if slug == "the-plan" else Audio.GERMAN
         self.provider_data = {(audio, Subtitles.NONE): {"VOE": f"https://voe.sx/e/{slug}"}}
-        self.redirect_url = self.provider_data[(audio, Subtitles.NONE)][selected_provider or "VOE"]
+        self.provider_url = self.provider_data[(audio, Subtitles.NONE)][selected_provider or "VOE"]
 
 
 def _fake_site(results, keywords=None):
