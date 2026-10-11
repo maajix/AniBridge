@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from loguru import logger
 from sqlmodel import Session
 
+from app.providers import get_provider
 from app.providers.aniworld.specials import SpecialIds
 from app.utils.magnet import _site_prefix
 from app.utils.movie_year import get_movie_year
@@ -43,6 +44,14 @@ def handle_preview_search(
         return 0
 
     site_found, slug = result
+    if site_found == "megakino" and movie_year:
+        # Megakino slugs carry no year; re-pick by page year so "Vaiana 2026"
+        # does not resolve to the 2016 film.
+        match = get_provider("megakino").search_slug(q_str)
+        if not match:
+            logger.info("No megakino match for '{}' with a fitting year", q_str)
+            return 0
+        slug = match.slug
     display_title = tn.resolve_series_title(slug, site_found) or q_str
     if movie_year:
         display_title = f"{display_title} {movie_year}"
