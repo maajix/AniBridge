@@ -61,50 +61,71 @@ def handle_preview_search(
     count = 0
 
     for lang in candidate_langs:
+        # Reuse a fresh positive probe, like tvsearch: a live probe can take
+        # longer than Prowlarr's 100 s indexer timeout.
         try:
-            available, height, vcodec, provider, _info = tn.probe_episode_quality(
-                slug=slug,
-                season=season_i,
-                episode=episode_i,
-                language=lang,
-                site=site_found,
-            )
-        except (ValueError, RuntimeError) as exc:
-            logger.error(
-                "Error probing preview quality for slug={}, S{}E{}, lang={}, site={}: {}",
-                slug,
-                season_i,
-                episode_i,
-                lang,
-                site_found,
-                exc,
-            )
-            continue
-
-        try:
-            tn.upsert_availability(
+            rec = tn.get_availability(
                 session,
                 slug=slug,
                 season=season_i,
                 episode=episode_i,
                 language=lang,
-                available=available,
-                height=height,
-                vcodec=vcodec,
-                provider=provider,
-                extra=None,
                 site=site_found,
             )
-        except (ValueError, RuntimeError) as exc:
-            logger.error(
-                "Error upserting preview availability for slug={}, S{}E{}, lang={}, site={}: {}",
-                slug,
-                season_i,
-                episode_i,
-                lang,
-                site_found,
-                exc,
+        except (ValueError, RuntimeError):
+            rec = None
+        if rec and rec.available and rec.is_fresh:
+            available, height, vcodec, provider = (
+                True,
+                rec.height,
+                rec.vcodec,
+                rec.provider,
             )
+        else:
+            try:
+                available, height, vcodec, provider, _info = tn.probe_episode_quality(
+                    slug=slug,
+                    season=season_i,
+                    episode=episode_i,
+                    language=lang,
+                    site=site_found,
+                )
+            except (ValueError, RuntimeError) as exc:
+                logger.error(
+                    "Error probing preview quality for slug={}, S{}E{}, lang={}, site={}: {}",
+                    slug,
+                    season_i,
+                    episode_i,
+                    lang,
+                    site_found,
+                    exc,
+                )
+                continue
+
+            try:
+                tn.upsert_availability(
+                    session,
+                    slug=slug,
+                    season=season_i,
+                    episode=episode_i,
+                    language=lang,
+                    available=available,
+                    height=height,
+                    vcodec=vcodec,
+                    provider=provider,
+                    extra=None,
+                    site=site_found,
+                )
+            except (ValueError, RuntimeError) as exc:
+                logger.error(
+                    "Error upserting preview availability for slug={}, S{}E{}, lang={}, site={}: {}",
+                    slug,
+                    season_i,
+                    episode_i,
+                    lang,
+                    site_found,
+                    exc,
+                )
         if not available:
             continue
 

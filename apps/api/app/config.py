@@ -282,7 +282,7 @@ _DEFAULT_SITE_CONFIGS: dict[str, dict[str, Any]] = {
         "alphabet_html": None,
         "alphabet_url": None,
         "titles_refresh_hours": MEGAKINO_TITLES_REFRESH_HOURS,
-        "default_languages": ["Deutsch", "German Dub"],
+        "default_languages": ["German Dub"],
         "release_group": "megakino",
     },
 }
