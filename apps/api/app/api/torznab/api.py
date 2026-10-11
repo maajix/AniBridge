@@ -431,9 +431,10 @@ def torznab_api(
             return _rss_response(rss)
 
         if movie_preferred:
+            # Offer every site's release so the *arr picks the best quality
             count = 0
             for movie_site in ("megakino", *MOVIE_SITES):
-                count = _handle_preview_search(
+                count += _handle_preview_search(
                     session,
                     q_str,
                     channel,
@@ -442,8 +443,6 @@ def torznab_api(
                     limit=limit,
                     strm_suffix=strm_suffix,
                 )
-                if count:
-                    break
             if count == 0:
                 _handle_preview_search(
                     session,
@@ -497,7 +496,7 @@ def torznab_api(
             return _rss_response(rss)
         if q_str:
             for movie_site in ("megakino", *MOVIE_SITES):
-                if _handle_preview_search(
+                _handle_preview_search(
                     session,
                     q_str,
                     channel,
@@ -505,8 +504,7 @@ def torznab_api(
                     site=movie_site,
                     limit=limit,
                     strm_suffix=strm_suffix,
-                ):
-                    break
+                )
         return _rss_response(rss)
 
     if t != "tvsearch":
