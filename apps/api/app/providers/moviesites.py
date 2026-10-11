@@ -14,6 +14,7 @@ from loguru import logger
 
 from app.config import PROVIDER_ORDER
 from app.hosts import resolve_host_url
+from app.utils.aniworld_compat import prepare_aniworld_home
 from app.utils.movie_year import extract_year_from_query
 
 MOVIE_SITES = ("filmpalast", "filmo")
@@ -22,6 +23,7 @@ _LANGUAGE = "German Dub"
 
 def _site(site: str):
     # aniworld pulls in niquests/curl_cffi; import only when a movie site is used
+    prepare_aniworld_home()
     from aniworld.models.filmo_to import FilmoEpisode
     from aniworld.models.filmpalast_to import FilmPalastEpisode
     from aniworld.search import query_filmo, query_filmpalast
@@ -34,6 +36,7 @@ def _site(site: str):
 
 def _german_providers(episode) -> list[str]:
     # FilmPalast's available_providers() silently falls back to English audio
+    prepare_aniworld_home()
     from aniworld.config import Audio, Subtitles
 
     data = episode.provider_data
