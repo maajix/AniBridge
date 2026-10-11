@@ -39,7 +39,7 @@ def test_real_installed_aniworld_contracts(tmp_path: Path) -> None:
         from aniworld.extractors.provider.voe import extract_voe_source_from_html
         from app.core.downloader.episode import build_episode
 
-        assert version("aniworld") == "5.0.6"
+        assert version("aniworld") == "5.3.0"
         assert not hasattr(models, "Episode")
         models.AniworldEpisode(
             url="https://aniworld.to/anime/stream/example/staffel-1/episode-1"
@@ -61,8 +61,7 @@ def test_real_installed_aniworld_contracts(tmp_path: Path) -> None:
         assert type(serienstream._backend).__name__ == "SerienstreamSource"
 
         hosts = (
-            "voe", "filemoon", "streamtape", "vidmoly",
-            "doodstream", "loadx", "luluvdo", "vidoza",
+            "voe", "filemoon", "vidmoly", "doodstream", "vidoza",
         )
         for host in hosts:
             function = extractors.provider_functions[

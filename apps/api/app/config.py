@@ -299,9 +299,10 @@ for site in CATALOG_SITES_LIST:
 
 # ---- Video-host fallback ----
 # Comma-separated list of direct video hosts, for example:
-# "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
+# "VOE,Filemoon,Vidmoly,Doodstream,Vidoza" (aniworld 5.3.0 dropped Streamtape,
+# LoadX and Luluvdo; they stay accepted below but resolve to nothing)
 # Order = priority.
-_default_order = "VOE,Filemoon,Streamtape,Vidmoly,Doodstream,LoadX,Luluvdo,Vidoza"
+_default_order = "VOE,Filemoon,Vidmoly,Doodstream,Vidoza"
 _raw = os.getenv("PROVIDER_ORDER", _default_order)
 logger.debug(f"PROVIDER_ORDER raw string: {_raw}")
 _VALID_VIDEO_HOSTS = {
