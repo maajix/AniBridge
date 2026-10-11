@@ -8,7 +8,7 @@ from typing import Optional
 
 from loguru import logger
 from fastapi import FastAPI
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.infrastructure.network import (
     start_ip_check_thread,
@@ -29,13 +29,15 @@ from app.config import (
     DB_MIGRATE_ON_STARTUP,
 )
 
-from app.core.scheduler import init_executor, shutdown_executor
+from app.core.scheduler import init_executor, schedule_download, shutdown_executor
 from app.db import (
     engine,
     dispose_engine,
     apply_migrations,
     create_db_and_tables,
     cleanup_dangling_jobs,
+    ClientTask,
+    Job,
 )
 
 
@@ -91,6 +93,33 @@ def _start_ttl_cleanup_thread(
     return t
 
 
+def requeue_interrupted_downloads(job_ids: set[str]) -> int:
+    """Re-queue downloads a restart interrupted (nightly backup, updates).
+
+    The *arr apps otherwise keep them as errored torrents forever. The same
+    title_hint gives the same file name, so yt-dlp resumes its .part file.
+    """
+    if not job_ids:
+        return 0
+    with Session(engine) as s:
+        tasks = s.exec(select(ClientTask).where(ClientTask.job_id.in_(job_ids))).all()
+        for task in tasks:
+            req = {
+                "slug": task.slug,
+                "season": task.season,
+                "episode": task.episode,
+                "language": task.language,
+                "site": task.site,
+                "title_hint": task.name,
+            }
+            if task.name.endswith(" [STRM]"):
+                req["mode"] = "strm"
+            task.job_id = schedule_download(req)
+            s.add(task)
+        s.commit()
+        return len(tasks)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -125,10 +154,18 @@ async def lifespan(app: FastAPI):
     else:
         create_db_and_tables()
     with Session(engine) as s:
+        interrupted = set(
+            s.exec(
+                select(Job.id).where(Job.status.in_(["queued", "downloading"]))
+            ).all()
+        )
         cleaned = cleanup_dangling_jobs(s)
         if cleaned:
             logger.warning(f"Reset {cleaned} dangling jobs to 'failed'")
     init_executor()
+    resumed = requeue_interrupted_downloads(interrupted)
+    if resumed:
+        logger.warning(f"Re-queued {resumed} downloads interrupted by the restart")
 
     # Start background workers
     cleanup_stop = threading.Event()
