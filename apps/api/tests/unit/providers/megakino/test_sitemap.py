@@ -193,3 +193,30 @@ def test_megakino_resolve_url_uses_active_base_domain(monkeypatch):
 
     assert client.resolve_url("matrix") == "https://megakino23.com/films/852-matrix.html"
     assert client.search("Matrix")[0].url.startswith("https://megakino23.com/")
+
+
+def test_megakino_search_slug_picks_match_with_query_year(monkeypatch):
+    """Same-score slugs are told apart by their page year; no fit means no match."""
+    import app.providers.megakino.client as megakino_client
+    from app.providers.megakino.provider import get_provider
+
+    client = MegakinoClient(sitemap_url="http://example.com", refresh_hours=0.0)
+    client._index = MegakinoIndex(
+        entries={
+            slug: MegakinoIndexEntry(
+                slug=slug,
+                url=f"https://megakino23.com/films/1-{slug}.html",
+                kind="film",
+                lastmod=datetime(2026, 10, 11),
+            )
+            for slug in ("vaiana", "vaiana-2")
+        },
+        fetched_at=0.0,
+    )
+    client._years = {"vaiana": 2016, "vaiana-2": 2024}
+    monkeypatch.setattr(megakino_client, "get_default_client", lambda: client)
+    provider = get_provider()
+
+    assert provider.search_slug("Vaiana 2 2024").slug == "vaiana-2"
+    assert provider.search_slug("Vaiana 2016").slug == "vaiana"
+    assert provider.search_slug("Vaiana 2026") is None

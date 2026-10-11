@@ -10,6 +10,7 @@ from loguru import logger
 from app.providers.base import CatalogProvider, ProviderMatch
 from app.providers.megakino import client as megakino_client
 from app.providers.megakino import sitemap as megakino_sitemap
+from app.utils.movie_year import extract_year_from_query
 
 _MEGAKINO_SLUG_PATTERN = re.compile(r"/(?:serials|films)/\d+-([^./?#]+)")
 
@@ -96,13 +97,30 @@ class MegakinoProvider(CatalogProvider):
         """
         if not query:
             return None
+        client = megakino_client.get_default_client()
         try:
-            results = megakino_client.get_default_client().search(query, limit=1)
+            results = client.search(query, limit=3)
         except (requests.RequestException, OSError, ValueError) as exc:
             logger.error("Megakino search failed: {}", exc)
             return None
-        if results:
-            top = results[0]
+        # Slugs carry no year: "Vaiana 2026" matched the 2016 film and was
+        # released as Vaiana.2026. Take the first match whose page year fits.
+        year = extract_year_from_query(query)
+        for top in results if year else results[:1]:
+            if year:
+                try:
+                    page_year = client.page_year(top.slug)
+                except (requests.RequestException, OSError, ValueError) as exc:
+                    logger.warning("Megakino year lookup failed for {}: {}", top.slug, exc)
+                    page_year = None
+                if page_year and abs(page_year - year) > 1:
+                    logger.info(
+                        "Megakino '{}' is from {}, query asks for {}; skipping",
+                        top.slug,
+                        page_year,
+                        year,
+                    )
+                    continue
             return ProviderMatch(slug=top.slug, score=top.score)
         return None
 

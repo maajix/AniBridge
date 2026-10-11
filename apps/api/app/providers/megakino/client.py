@@ -44,6 +44,22 @@ def _on_base_domain(url: str) -> str:
     return urlparse(url)._replace(scheme=base.scheme, netloc=base.netloc).geturl()
 
 
+_PAGE_YEAR_RE = re.compile(r"/xfsearch/release_date/(\d{4})/")
+
+
+def _page_year(html: str) -> Optional[int]:
+    match = _PAGE_YEAR_RE.search(html)
+    return int(match.group(1)) if match else None
+
+
+def _fetch_page(page_url: str) -> str:
+    base_url = get_megakino_base_url().rstrip("/")
+    _warm_megakino_session(base_url)
+    resp = http_get(page_url, timeout=20, headers=_megakino_headers(referer=base_url))
+    resp.raise_for_status()
+    return resp.text
+
+
 def _is_disabled_host_url(url: str) -> bool:
     """Return whether a host URL points to a disabled extractor host."""
 
@@ -80,6 +96,7 @@ class MegakinoClient:
         self._sitemap_url = sitemap_url
         self._refresh_hours = refresh_hours
         self._index: Optional[MegakinoIndex] = None
+        self._years: Dict[str, Optional[int]] = {}
 
     def load_index(self) -> Dict[str, MegakinoIndexEntry]:
         """
@@ -154,6 +171,13 @@ class MegakinoClient:
             return _on_base_domain(entry.url)
         return None
 
+    def page_year(self, slug: str) -> Optional[int]:
+        """Release year shown on the slug's page, or None if it has none."""
+        if slug not in self._years:
+            page_url = self.resolve_url(slug)
+            self._years[slug] = _page_year(_fetch_page(page_url)) if page_url else None
+        return self._years[slug]
+
     def resolve_direct_url(
         self,
         slug: str,
@@ -187,17 +211,11 @@ class MegakinoClient:
         if not page_url:
             raise ValueError(f"Megakino page not found for slug '{slug}'")
         logger.debug("Megakino page URL resolved: {}", page_url)
-        base_url = get_megakino_base_url().rstrip("/")
-        _warm_megakino_session(base_url)
-        resp = http_get(
-            page_url,
-            timeout=20,
-            headers=_megakino_headers(referer=base_url),
-        )
-        resp.raise_for_status()
+        html = _fetch_page(page_url)
+        self._years.setdefault(slug, _page_year(html))
         host_urls = [
             url
-            for url in _extract_host_links(resp.text)
+            for url in _extract_host_links(html)
             if not _is_disabled_host_url(url)
         ]
         if not host_urls:
