@@ -68,8 +68,10 @@ def _ydl_download(
         "concurrent_fragment_downloads": concurrent_fragment_downloads,
         "quiet": True,
         "noprogress": True,
+        # VOE serves some films with separate audio tracks (German + English);
+        # yt-dlp's default would merge the English one.
+        "format": "bv*+ba[language^=de]/b/bv*+ba",
         "merge_output_format": "mkv",
-        "downloader": "ffmpeg",
         "hls_use_mpegts": True,
         "socket_timeout": 20,
     }

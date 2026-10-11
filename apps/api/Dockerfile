@@ -33,6 +33,10 @@ RUN rm -rf /app/.venv/lib/python*/site-packages/urllib3 \
 FROM base AS final
 WORKDIR /app
 
+# ffmpeg merges films whose hoster serves video and audio as separate tracks
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create default non-root user/group (IDs will be adjusted at runtime via entrypoint)
 RUN addgroup --system appgroup && adduser --system --group appuser
 
